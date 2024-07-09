@@ -1,8 +1,13 @@
 import streamlit as st
-from deep_translator import GoogleTranslator as Translator
 from gtts import gTTS
 import os
+import google.generativeai as genai
+from deep_translator import GoogleTranslator as Translator
 
+os.environ['GOOGLE_API_KEY'] = "AIzaSyDslnjyZp2iLiVt3xvfoGGg6jyylg-fMV8"
+genai.configure(api_key=os.environ['GOOGLE_API_KEY'])
+
+model = genai.GenerativeModel('gemini-pro')
 
 language_dict = {
     'english': 'en',
@@ -95,16 +100,22 @@ def text_to_speech(text, lang):
 def chatbot():
     st.title("Language Translator")
     user_input = st.text_input("Text to be translated", "")
-    text_input = st.text_input("Translate to ?", "")
+    # text_input = st.text_input("Translate to ?", "")
+    text_input = st.selectbox("Select target language", list(language_dict.keys()))
     button_input = st.button("Translate")
+
     try:
-        translated = Translator(source='auto', target=text_input).translate(user_input)
+        response = model.generate_content(user_input + " translate to " + text_input)
+        response = response.candidates[0].content.parts[0].text
     except Exception as e:
-        translated = "Please enter valid inputs"
-    
+        try:
+            response = Translator(source='auto', target=text_input).translate(user_input)
+        except Exception as e:
+            response = "Please enter valid inputs"
+
     if button_input:
-        st.text_area("Generated response", value=translated ,height=200, key="generated_response", disabled=True)
-        text_to_speech(translated, text_input)
+        st.text_area("Generated response", value=response ,height=200, key="generated_response", disabled=True)
+        text_to_speech(response, text_input)
         audio_file = open("output.mp3", "rb")
         audio_bytes = audio_file.read()
         st.audio(audio_bytes, format="audio/mp3")
